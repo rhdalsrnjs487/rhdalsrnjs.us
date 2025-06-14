@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>관리자 페이지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 2rem;
+      background: #f4f4f4;
+      color: #333;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      background: #4285F4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #dataContainer {
+      margin-top: 2rem;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    .entry {
+      border-bottom: 1px solid #ccc;
+      padding: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 관리자 전용 신청 내역</h1>
+  <div id="userInfo"></div>
+  <button id="loginBtn">Google 로그인</button>
+  <div id="dataContainer" style="display:none;"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+
+    // Firebase 설정
+    const firebaseConfig = {
+    apiKey: "AIzaSyBWarrPwB2j_YF5PH0OISFfV1uMJ4kqLC0",
+    authDomain: "test-formf.firebaseapp.com",
+    projectId: "test-formf",
+    storageBucket: "test-formf.firebasestorage.app",
+    messagingSenderId: "915654574182",
+    appId: "1:915654574182:web:79813dacb1e1304fb9eda7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const loginBtn = document.getElementById("loginBtn");
+    const dataContainer = document.getElementById("dataContainer");
+    const userInfo = document.getElementById("userInfo");
+
+    loginBtn.onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        alert("로그인 오류: " + error.message);
+      }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const email = user.email;
+        userInfo.innerText = `👤 로그인: ${email}`;
+
+        // 관리자 이메일만 허용
+        if (email !== "rhdalsrnjs488@gmail.com") {
+          alert("접근 권한이 없습니다.");
+          return;
+        }
+
+        dataContainer.style.display = "block";
+        dataContainer.innerHTML = "<h2>신청 목록</h2>";
+
+        const q = query(collection(db, "applications"), orderBy("submittedAt", "desc"));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          dataContainer.innerHTML += "<p>신청 내역이 없습니다.</p>";
+          return;
+        }
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const entry = `
+            <div class="entry">
+              <strong>이름:</strong> ${data.name}<br/>
+              <strong>전화번호:</strong> ${data.phone}<br/>
+              <strong>인스타그램:</strong> ${data.instagram}<br/>
+              <strong>상품:</strong> ${data.product}<br/>
+              <strong>개수:</strong> ${data.quantity}<br/>
+              <strong>요청 사항:</strong> ${data.request}<br/>
+              <strong>제출 시각:</strong> ${new Date(data.submittedAt.toDate()).toLocaleString()}
+            </div>
+          `;
+          dataContainer.innerHTML += entry;
+        });
+
+      } else {
+        userInfo.innerText = "";
+        dataContainer.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>
